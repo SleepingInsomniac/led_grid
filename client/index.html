@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+  <title>LED controller</title>
+
+  <link rel="stylesheet" href="/style.css" type="text/css">
+  <script src="/script.js"></script>
+</head>
+<body>
+  <div class="controls">
+    <input id="red" type="range" min="1" max="255" value="0"><br>
+    <input id="grn" type="range" min="1" max="255" value="0"><br>
+    <input id="blu" type="range" min="1" max="255" value="0"><br>
+    <div id="exampleColor"></div>
+    <button id="updater">Update</button>
+    <button id="fill">fill</button>
+  </div>
+  <hr>
+  <div id="ledsContainer"></div>
+</body>
+</html>
