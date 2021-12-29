@@ -6,16 +6,38 @@ let state = {
 };
 let divs = [];
 
+function leftPad(str, i, char = ' ') {
+  while (str.length < i) { str = char + str; }
+  return str;
+}
+
 function setColor() {
   let red = document.getElementById('red');
   let grn = document.getElementById('grn');
   let blu = document.getElementById('blu');
 
-  currentColor[0] = red.value;
-  currentColor[1] = grn.value;
-  currentColor[2] = blu.value;
+  currentColor[0] = parseInt(red.value);
+  currentColor[1] = parseInt(grn.value);
+  currentColor[2] = parseInt(blu.value);
 
   document.getElementById('exampleColor').style.backgroundColor = `rgb(${currentColor.join(',')})`;
+}
+
+function setValue(value) {
+  let red = document.getElementById('red');
+  let grn = document.getElementById('grn');
+  let blu = document.getElementById('blu');
+
+  if (value.match(/[a-z\d]{6}/i)) {
+    let r = parseInt(value.substring(0, 2), 16);
+    let g = parseInt(value.substring(2, 4), 16);
+    let b = parseInt(value.substring(4, 6), 16);
+
+    red.value = r;
+    grn.value = g;
+    blu.value = b;
+  }
+  setColor();
 }
 
 function update() {
@@ -33,12 +55,8 @@ function update() {
   }).then( (response) => {});
 }
 
-function setColer(div, color) {
-  div.style.backgroundColor = `rgb(${color.join(',')})`;
-  let index = divs.indexOf(div);
-  colors[index][0] = color[0];
-  colors[index][1] = color[1];
-  colors[index][2] = color[2];
+function setColorText() {
+  document.getElementById('colorText').value = currentColor.map(c => leftPad(c.toString(16), 2, '0')).join('');
 }
 
 window.addEventListener('DOMContentLoaded', function() {
@@ -48,9 +66,18 @@ window.addEventListener('DOMContentLoaded', function() {
   let grn = document.getElementById('grn');
   let blu = document.getElementById('blu');
 
-  red.addEventListener('change', setColor);
-  grn.addEventListener('change', setColor);
-  blu.addEventListener('change', setColor);
+  red.addEventListener('change', e => {
+    setColor();
+    setColorText();
+  });
+  grn.addEventListener('change', e => {
+    setColor();
+    setColorText();
+  });
+  blu.addEventListener('change', e => {
+    setColor();
+    setColorText();
+  });
 
   window.addEventListener('mousedown', e => {
     state.mousedown = true;
@@ -97,6 +124,19 @@ window.addEventListener('DOMContentLoaded', function() {
     update();
   });
 
+  document.getElementById('clear').addEventListener('click', e => {
+    divs.forEach(d => {
+      d.style.backgroundColor = `rgb(0,0,0)`;
+    });
+
+    colors.forEach(c => {
+      c[0] = 0;
+      c[1] = 0;
+      c[2] = 0;
+    });
+    // update();
+  });
+
   document.getElementById('fill').addEventListener('click', e => {
     divs.forEach(d => {
       d.style.backgroundColor = `rgb(${currentColor.join(',')})`;
@@ -107,6 +147,46 @@ window.addEventListener('DOMContentLoaded', function() {
       c[1] = currentColor[1];
       c[2] = currentColor[2];
     });
-    update();
+    // update();
+  });
+
+  document.getElementById('save').addEventListener('click', (e) => {
+    let canvas = document.createElement('canvas');
+    let target = document.getElementById('frames');
+    target.append(canvas);
+    canvas.setAttribute('data-json', JSON.stringify(colors));
+    canvas.width = '32';
+    canvas.height = '32';
+    canvas.style.width = '32px';
+    canvas.style.height = '32px';
+    let ctx = canvas.getContext('2d');
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0,0,32,32);
+
+    let scale = 2;
+
+    for (let x = 0; x < 16; x++) {
+      for (let y = 0; y < 16; y++) {
+        ctx.fillStyle = `rgb(${colors[y * 16 + x].join(',')})`;
+        ctx.fillRect(x * scale, y * scale, scale, scale);
+      }
+    }
+
+    canvas.onclick = function(e) {
+      colors = JSON.parse(e.target.getAttribute('data-json'));
+      let leds = document.getElementById('ledsContainer').children;
+      for (let y = 0; y < 16; y++) {
+        let row = document.getElementById('ledsContainer').children[y];
+        for (let x = 0; x < 16; x++) {
+          let cell = row.children[x];
+          let i = y * 16 + x;
+          cell.style.backgroundColor = `rgb(${colors[i].join(',')})`;
+        }
+      }
+    };
+  });
+
+  document.getElementById('colorText').addEventListener('keyup', (e) => {
+    setValue(document.getElementById('colorText').value);
   });
 });

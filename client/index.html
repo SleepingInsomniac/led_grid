@@ -12,12 +12,19 @@
 </head>
 <body>
   <div class="controls">
-    <input id="red" type="range" min="1" max="255" value="0"><br>
-    <input id="grn" type="range" min="1" max="255" value="0"><br>
-    <input id="blu" type="range" min="1" max="255" value="0"><br>
+    <div id="sliders">
+      <input id="red" type="range" min="0" max="255" value="0"><br>
+      <input id="grn" type="range" min="0" max="255" value="0"><br>
+      <input id="blu" type="range" min="0" max="255" value="0"><br>
+    </div>
     <div id="exampleColor"></div>
-    <button id="updater">Update</button>
-    <button id="fill">fill</button>
+    <input type="text" id="colorText" value="000000" size="6">
+    <button id="updater">Send update</button>
+    <button id="clear">Clear</button>
+    <button id="fill">Fill</button>
+    <button id="save">Save</button>
+    <div id="frames" class="ctl-right">
+    </div>
   </div>
   <hr>
   <div id="ledsContainer"></div>
