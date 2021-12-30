@@ -5,6 +5,8 @@ let state = {
   mousedown: false
 };
 let divs = [];
+let selectedCanvas;
+let playing = false;
 
 function leftPad(str, i, char = ' ') {
   while (str.length < i) { str = char + str; }
@@ -40,7 +42,7 @@ function setValue(value) {
   setColor();
 }
 
-function update() {
+function update(responseFunc = (r) => {}, failFunc = (e) => { console.error(e); }) {
   const formData = new FormData();
   let data = colors.map(
     c => c.map(s => Number(s).toString(16).padStart(2, '0')).join('')
@@ -48,15 +50,92 @@ function update() {
 
   formData.append('data', data);
 
-  fetch("http://leds.local", {
+  response = fetch("http://leds.local", {
     mode: 'no-cors',
     method: "post",
     body: formData
-  }).then( (response) => {});
+  }).then(responseFunc, failFunc);
 }
 
 function setColorText() {
   document.getElementById('colorText').value = currentColor.map(c => leftPad(c.toString(16), 2, '0')).join('');
+}
+
+function updatePreview(canvas) {
+  if (!canvas) return;
+
+  canvas.setAttribute('data-json', JSON.stringify(colors));
+
+  let ctx = canvas.getContext('2d');
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0,0,32,32);
+
+  let scale = 2;
+
+  for (let x = 0; x < 16; x++) {
+    for (let y = 0; y < 16; y++) {
+      ctx.fillStyle = `rgb(${colors[y * 16 + x].join(',')})`;
+      ctx.fillRect(x * scale, y * scale, scale, scale);
+    }
+  }
+}
+
+function setFrame(canvas) {
+  selectedCanvas = canvas;
+  colors = JSON.parse(canvas.getAttribute('data-json'));
+  let leds = document.getElementById('ledsContainer').children;
+  for (let y = 0; y < 16; y++) {
+    let row = document.getElementById('ledsContainer').children[y];
+    for (let x = 0; x < 16; x++) {
+      let cell = row.children[x];
+      let i = y * 16 + x;
+      cell.style.backgroundColor = `rgb(${colors[i].join(',')})`;
+    }
+  }
+}
+
+function addFrame() {
+  let canvas = document.createElement('canvas');
+  let target = document.getElementById('frames');
+  target.append(canvas);
+  canvas.width = '32';
+  canvas.height = '32';
+  canvas.style.width = '32px';
+  canvas.style.height = '32px';
+
+  // colors = colors.map(c => c = [0,0,0]);
+  selectedCanvas = canvas;
+  updatePreview(canvas);
+  updateDivs();
+
+  canvas.onclick = function(e) {
+    setFrame(e.target);
+  };
+
+  return canvas;
+}
+
+function updateDivs() {
+  let n = 0;
+  divs.forEach(div => {
+    div.style.backgroundColor = `rgb(${colors[n].join(',')})`;
+    n += 1;
+  })
+}
+
+function playLoop() {
+  update(response => {
+    if (playing) {
+      let framesDiv = document.getElementById('frames');
+      let n = [...framesDiv.children].indexOf(selectedCanvas) + 1;
+      setFrame(framesDiv.children[n % framesDiv.children.length]);
+
+      playLoop();
+    }
+  }, error => {
+    console.error(error);
+    playLoop();
+  });
 }
 
 window.addEventListener('DOMContentLoaded', function() {
@@ -65,27 +144,6 @@ window.addEventListener('DOMContentLoaded', function() {
   let red = document.getElementById('red');
   let grn = document.getElementById('grn');
   let blu = document.getElementById('blu');
-
-  red.addEventListener('change', e => {
-    setColor();
-    setColorText();
-  });
-  grn.addEventListener('change', e => {
-    setColor();
-    setColorText();
-  });
-  blu.addEventListener('change', e => {
-    setColor();
-    setColorText();
-  });
-
-  window.addEventListener('mousedown', e => {
-    state.mousedown = true;
-  });
-
-  window.addEventListener('mouseup', e => {
-    state.mousedown = false;
-  });
 
   for (let i = 0; i < 16; i++) {
     let divRow = document.createElement('div');
@@ -120,21 +178,52 @@ window.addEventListener('DOMContentLoaded', function() {
     ledsContainer.appendChild(divRow)
   }
 
+  selectedCanvas = addFrame();
+
+  red.addEventListener('change', e => {
+    setColor();
+    setColorText();
+  });
+
+  grn.addEventListener('change', e => {
+    setColor();
+    setColorText();
+  });
+
+  blu.addEventListener('change', e => {
+    setColor();
+    setColorText();
+  });
+
+  window.addEventListener('mousedown', e => {
+    state.mousedown = true;
+  });
+
+  window.addEventListener('mouseup', e => {
+    state.mousedown = false;
+    updatePreview(selectedCanvas);
+  });
+
   document.getElementById('updater').addEventListener('click', (e) => {
     update();
   });
 
-  document.getElementById('clear').addEventListener('click', e => {
-    divs.forEach(d => {
-      d.style.backgroundColor = `rgb(0,0,0)`;
-    });
+  let playBtn = document.getElementById('playBtn')
+  playBtn.addEventListener('click', e => {
+    if (!playing) {
+      playing = true;
+      playBtn.textContent = 'Pause';
+      playLoop();
+    } else {
+      playing = false;
+      playBtn.textContent = 'Play';
+    }
+  });
 
-    colors.forEach(c => {
-      c[0] = 0;
-      c[1] = 0;
-      c[2] = 0;
-    });
-    // update();
+  document.getElementById('clear').addEventListener('click', e => {
+    colors = colors.map(c => c = [0,0,0]);
+    updateDivs();
+    updatePreview(selectedCanvas);
   });
 
   document.getElementById('fill').addEventListener('click', e => {
@@ -147,43 +236,21 @@ window.addEventListener('DOMContentLoaded', function() {
       c[1] = currentColor[1];
       c[2] = currentColor[2];
     });
-    // update();
+
+    updatePreview();
   });
 
-  document.getElementById('save').addEventListener('click', (e) => {
-    let canvas = document.createElement('canvas');
-    let target = document.getElementById('frames');
-    target.append(canvas);
-    canvas.setAttribute('data-json', JSON.stringify(colors));
-    canvas.width = '32';
-    canvas.height = '32';
-    canvas.style.width = '32px';
-    canvas.style.height = '32px';
-    let ctx = canvas.getContext('2d');
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0,0,32,32);
+  document.getElementById('addFrame').addEventListener('click', (e) => {
+    addFrame();
+  });
 
-    let scale = 2;
+  document.getElementById('delFrame').addEventListener('click', (e) => {
+    let framesDiv = document.getElementById('frames');
 
-    for (let x = 0; x < 16; x++) {
-      for (let y = 0; y < 16; y++) {
-        ctx.fillStyle = `rgb(${colors[y * 16 + x].join(',')})`;
-        ctx.fillRect(x * scale, y * scale, scale, scale);
-      }
+    if (framesDiv.children.length > 1) {
+      framesDiv.removeChild(selectedCanvas);
+      setFrame(framesDiv.children[0]);
     }
-
-    canvas.onclick = function(e) {
-      colors = JSON.parse(e.target.getAttribute('data-json'));
-      let leds = document.getElementById('ledsContainer').children;
-      for (let y = 0; y < 16; y++) {
-        let row = document.getElementById('ledsContainer').children[y];
-        for (let x = 0; x < 16; x++) {
-          let cell = row.children[x];
-          let i = y * 16 + x;
-          cell.style.backgroundColor = `rgb(${colors[i].join(',')})`;
-        }
-      }
-    };
   });
 
   document.getElementById('colorText').addEventListener('keyup', (e) => {
